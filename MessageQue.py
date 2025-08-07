@@ -4,51 +4,57 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
 import uuid
+import os
 
 class MessageType(Enum):
     REQUEST = "request"
     RESPONSE = "response"
     BROADCAST = "broadcast"
     TASK_ASSIGNMENT = "task_assignment"
+
 @dataclass
 class Message:
     id: str
     sender: str
-    receiver: str  # "ALL"이면 브로드캐스트
+    receiver: str  # "ALL" for broadcast
     message_type: MessageType
     content: str
     priority: int = 1
     reply_to: Optional[str] = None
     
     def __lt__(self, other):
-        return self.priority > other.priority  # 높은 우선순위가 먼저
+        return self.priority > other.priority  # Higher priority comes first
+
 class MessageBroker:
-    """메시지 브로커 - 에이전트 간 비동기 메시지 전달"""
+    """Message broker for asynchronous communication between agents."""
     def __init__(self):
         self.agent_queues = {}  # agent_id -> PriorityQueue
         self.message_history = {}
         
     def register_agent(self, agent_id: str):
-        """새 에이전트 등록"""
+        """Registers a new agent."""
         self.agent_queues[agent_id] = PriorityQueue()
         self.message_history[agent_id] = []
+
     def send_message(self, message: Message):
-        """메시지 전송"""
+        """Sends a message."""
         message.id = str(uuid.uuid4())
         if message.receiver == "ALL":
-            # 브로드캐스트
+            # Broadcast
             for agent_id in self.agent_queues:
                 if agent_id != message.sender:
                     self.agent_queues[agent_id].put(message)
         else:
-            # 특정 에이전트에게 전송
+            # Send to a specific agent
             if message.receiver in self.agent_queues:
                 self.agent_queues[message.receiver].put(message)
-        # 메시지 히스토리 저장
+
+        # Save message history
         if message.sender in self.message_history:
             self.message_history[message.sender].append(message)
+
     def receive_message(self, agent_id: str, timeout: int = 1) -> Optional[Message]:
-        """메시지 수신 (논블로킹)"""
+        """Receives a message (non-blocking)."""
         try:
             if not self.agent_queues[agent_id].empty():
                 return self.agent_queues[agent_id].get_nowait()
@@ -63,19 +69,21 @@ class MessageQueueAgent:
         self.llm = llm
         self.running = False
         broker.register_agent(agent_id)
+
     async def start_listening(self):
-        """메시지 수신 대기 시작"""
+        """Starts listening for messages."""
         self.running = True
         while self.running:
             message = self.broker.receive_message(self.agent_id)
             if message:
                 await self.handle_message(message)
-            await asyncio.sleep(0.1)  # CPU 사용량 조절
+            await asyncio.sleep(0.1)  # Adjust CPU usage
+
     async def handle_message(self, message: Message):
-        """수신된 메시지 처리"""
+        """Handles a received message."""
         print(f"[{self.agent_id}] Received {message.message_type.value} from {message.sender}: {message.content}")
         if message.message_type == MessageType.REQUEST:
-            # 요청에 대한 응답 생성
+            # Generate a response to the request
             response_content = await self.process_request(message.content)
             
             response = Message(
@@ -88,22 +96,26 @@ class MessageQueueAgent:
             )
             self.broker.send_message(response)
         elif message.message_type == MessageType.TASK_ASSIGNMENT:
-            # 작업 할당 처리
+            # Handle task assignment
             await self.execute_task(message.content)
+
     async def process_request(self, request: str) -> str:
-        """LLM을 사용해 요청 처리"""
+        """Processes a request using the LLM."""
         prompt = f"""
         You are agent {self.agent_id}. 
         You received this request: {request}
         
         Please provide a helpful response:
         """
+        if hasattr(self.llm, 'invoke'):
+             return self.llm.invoke(prompt)
         return self.llm(prompt)
+
     async def execute_task(self, task: str):
-        """할당된 작업 실행"""
+        """Executes an assigned task."""
         result = await self.process_request(f"Execute this task: {task}")
         
-        # 작업 완료 브로드캐스트
+        # Broadcast task completion
         completion_message = Message(
             id="",
             sender=self.agent_id,
@@ -112,8 +124,9 @@ class MessageQueueAgent:
             content=f"Task completed: {task}. Result: {result}"
         )
         self.broker.send_message(completion_message)
+
     def send_request(self, target_agent: str, request: str, priority: int = 1):
-        """다른 에이전트에게 요청 전송"""
+        """Sends a request to another agent."""
         message = Message(
             id="",
             sender=self.agent_id,
@@ -124,28 +137,64 @@ class MessageQueueAgent:
         )
         self.broker.send_message(message)
 
-# 사용 예시
-async def demo_message_queue():
-    broker = MessageBroker()
-    llm = OpenAI(temperature=0.7)   
-    # 에이전트들 생성
-    manager = MessageQueueAgent("manager", broker, llm)
-    worker1 = MessageQueueAgent("worker1", broker, llm)
-    worker2 = MessageQueueAgent("worker2", broker, llm)
-    # 백그라운드에서 메시지 수신 시작
-    tasks = [
-        asyncio.create_task(manager.start_listening()),
-        asyncio.create_task(worker1.start_listening()),
-        asyncio.create_task(worker2.start_listening())
-    ]
-    # 작업 할당 시뮬레이션
-    await asyncio.sleep(1)  # 시스템 초기화 대기
-    # 매니저가 작업자들에게 작업 할당
-    manager.send_request("worker1", "Analyze sales data for Q1", priority=2)
-    manager.send_request("worker2", "Generate monthly report", priority=1)
-    # 작업자들 간 협업
-    worker1.send_request("worker2", "Can you provide customer feedback data?")
-    await asyncio.sleep(5)  # 작업 처리 시간
-    # 정리
-    for task in tasks:
-        task.cancel()
+# Example Usage
+if __name__ == "__main__":
+    # Mock LLM for demonstration without API key
+    class MockLLM:
+        def __call__(self, prompt: str) -> str:
+            return f"Mock response to: {prompt.strip()}"
+        def invoke(self, prompt: str) -> str:
+            return self.__call__(prompt)
+
+    async def demo_message_queue():
+        broker = MessageBroker()
+
+        # Use MockLLM for the demo
+        llm = MockLLM()
+        print("--- Running Message Queue Demo with Mock LLM ---")
+
+        # Uncomment the following lines to use OpenAI API
+        # if "OPENAI_API_KEY" not in os.environ:
+        #     print("Please set the OPENAI_API_KEY environment variable to run with OpenAI.")
+        #     return
+        # from langchain.llms import OpenAI
+        # llm = OpenAI(temperature=0.7)
+        # print("--- Running Message Queue Demo with OpenAI LLM ---")
+
+        # Create agents
+        manager = MessageQueueAgent("manager", broker, llm)
+        worker1 = MessageQueueAgent("worker1", broker, llm)
+        worker2 = MessageQueueAgent("worker2", broker, llm)
+
+        # Start listening in the background
+        tasks = [
+            asyncio.create_task(manager.start_listening()),
+            asyncio.create_task(worker1.start_listening()),
+            asyncio.create_task(worker2.start_listening())
+        ]
+
+        # Simulate task assignment
+        await asyncio.sleep(1)  # Wait for the system to initialize
+
+        # Manager assigns tasks to workers
+        print("\n--- Assigning Tasks ---")
+        manager.send_request("worker1", "Analyze sales data for Q1", priority=2)
+        manager.send_request("worker2", "Generate monthly report", priority=1)
+
+        # Workers collaborate
+        print("\n--- Worker Collaboration ---")
+        worker1.send_request("worker2", "Can you provide customer feedback data?")
+
+        await asyncio.sleep(2)  # Allow time for tasks to be processed
+
+        # Clean up
+        print("\n--- Shutting down ---")
+        for task in tasks:
+            task.cancel()
+
+        try:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            print("Tasks cancelled successfully.")
+
+    asyncio.run(demo_message_queue())

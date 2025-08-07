@@ -1,4 +1,4 @@
-# 예시: 스타켈버그 게임 (Stackelberg Game) 구현
+# Example: Stackelberg Game Implementation
 import numpy as np
 from typing import Dict, List, Tuple, Callable, Any
 from dataclasses import dataclass
@@ -6,7 +6,7 @@ from scipy.optimize import minimize_scalar, minimize
 
 @dataclass
 class StackelbergResult:
-    """스타켈버그 게임 결과"""
+    """Result of a Stackelberg game."""
     leader_strategy: float
     follower_strategy: float
     leader_payoff: float
@@ -15,7 +15,7 @@ class StackelbergResult:
     market_efficiency: float
 
 class StackelbergGameSolver:
-    """스타켈버그 게임 해결사"""
+    """A solver for Stackelberg games."""
     
     def __init__(self):
         self.game_history = []
@@ -25,23 +25,28 @@ class StackelbergGameSolver:
                              follower_payoff: Callable[[float, float], float],
                              leader_bounds: Tuple[float, float] = (0, 100),
                              follower_bounds: Tuple[float, float] = (0, 100)) -> StackelbergResult:
-        """스타켈버그 게임 해결"""
+        """Solves a Stackelberg game."""
         
         def follower_best_response(leader_strategy: float) -> float:
-            """팔로워의 최적 반응 함수"""
+            """Follower's best response function."""
+            print(f"  [Follower] Calculating best response for leader_strategy: {leader_strategy:.2f}")
             result = minimize_scalar(
                 lambda f_strategy: -follower_payoff(leader_strategy, f_strategy),
                 bounds=follower_bounds,
                 method='bounded'
             )
+            print(f"  [Follower] Best response is: {result.x:.2f}")
             return result.x
         
         def leader_objective(leader_strategy: float) -> float:
-            """리더의 목적 함수 (팔로워 반응 고려)"""
+            """Leader's objective function (considering the follower's response)."""
+            print(f"[Leader] Evaluating leader_strategy: {leader_strategy:.2f}")
             follower_response = follower_best_response(leader_strategy)
-            return -leader_payoff(leader_strategy, follower_response)
+            payoff = -leader_payoff(leader_strategy, follower_response)
+            print(f"[Leader] For strategy {leader_strategy:.2f}, follower responds {follower_response:.2f}, leader payoff: {-payoff:.2f}")
+            return payoff
         
-        # 리더의 최적 전략 계산
+        # Calculate the leader's optimal strategy
         leader_result = minimize_scalar(
             leader_objective,
             bounds=leader_bounds,
@@ -51,11 +56,11 @@ class StackelbergGameSolver:
         optimal_leader_strategy = leader_result.x
         optimal_follower_strategy = follower_best_response(optimal_leader_strategy)
         
-        # 균형에서의 보상 계산
+        # Calculate payoffs at equilibrium
         leader_payoff_value = leader_payoff(optimal_leader_strategy, optimal_follower_strategy)
         follower_payoff_value = follower_payoff(optimal_leader_strategy, optimal_follower_strategy)
         
-        # 시장 효율성 계산
+        # Calculate market efficiency
         market_efficiency = self._calculate_market_efficiency(
             optimal_leader_strategy, optimal_follower_strategy,
             leader_payoff, follower_payoff
@@ -72,12 +77,12 @@ class StackelbergGameSolver:
     
     def _calculate_market_efficiency(self, leader_strategy: float, follower_strategy: float,
                                    leader_payoff: Callable, follower_payoff: Callable) -> float:
-        """시장 효율성 계산"""
-        # 현재 총 이익
+        """Calculates market efficiency."""
+        # Current total profit
         current_total = leader_payoff(leader_strategy, follower_strategy) + \
                        follower_payoff(leader_strategy, follower_strategy)
         
-        # 최대 가능한 총 이익 (완전 협력 시)
+        # Maximum possible total profit (in case of full cooperation)
         def total_payoff(strategies):
             return -(leader_payoff(strategies[0], strategies[1]) + 
                     follower_payoff(strategies[0], strategies[1]))
@@ -89,33 +94,28 @@ class StackelbergGameSolver:
         
         return current_total / max_total if max_total > 0 else 0.0
     
-    def analyze_first_mover_advantage(self, leader_payoff: Callable, follower_payoff: Callable,
-                                    simultaneous_payoff: Callable = None) -> Dict[str, Any]:
-        """선수 이점 분석"""
-        # 스타켈버그 균형
+    def analyze_first_mover_advantage(self, leader_payoff: Callable, follower_payoff: Callable) -> Dict[str, Any]:
+        """Analyzes the first-mover advantage."""
+        # Stackelberg equilibrium
         stackelberg_result = self.solve_stackelberg_game(leader_payoff, follower_payoff)
         
-        # 동시 게임 (Nash 균형) 비교를 위한 계산
-        if simultaneous_payoff is not None:
-            nash_result = self._solve_simultaneous_game(simultaneous_payoff)
-        else:
-            # 동시 게임을 스타켈버그와 동일한 보상 함수로 가정
-            nash_result = self._solve_nash_approximation(leader_payoff, follower_payoff)
+        # Assume the simultaneous game has the same payoff functions as the Stackelberg game
+        nash_result = self._solve_nash_approximation(leader_payoff, follower_payoff)
         
-        # 선수 이점 계산
+        # Calculate first-mover advantage
         first_mover_advantage = stackelberg_result.leader_payoff - nash_result['player1_payoff']
         
         return {
             'stackelberg_equilibrium': stackelberg_result,
             'nash_equilibrium': nash_result,
             'first_mover_advantage': first_mover_advantage,
-            'advantage_percentage': (first_mover_advantage / nash_result['player1_payoff'] * 100) 
+            'advantage_percentage': (first_mover_advantage / nash_result['player1_payoff'] * 100)
                                   if nash_result['player1_payoff'] > 0 else 0,
             'market_power_analysis': self._analyze_market_power(stackelberg_result)
         }
 
     def _solve_nash_approximation(self, payoff1: Callable, payoff2: Callable) -> Dict[str, float]:
-        """Nash 균형 근사 계산"""
+        """Calculates an approximation of the Nash equilibrium."""
         def find_best_response_1(strategy2: float) -> float:
             result = minimize_scalar(
                 lambda s1: -payoff1(s1, strategy2),
@@ -132,14 +132,17 @@ class StackelbergGameSolver:
             )
             return result.x
         
-        # 반복적 최선 반응으로 Nash 균형 찾기
-        s1, s2 = 50.0, 50.0  # 초기 추정
+        # Find Nash equilibrium by iterative best response
+        s1, s2 = 50.0, 50.0  # Initial estimate
         
-        for _ in range(50):  # 최대 50번 반복
+        for i in range(50):  # Max 50 iterations
             new_s1 = find_best_response_1(s2)
             new_s2 = find_best_response_2(s1)
             
+            print(f"  [Nash Approx. Iteration {i+1}] s1: {s1:.2f} -> {new_s1:.2f}, s2: {s2:.2f} -> {new_s2:.2f}")
+
             if abs(new_s1 - s1) < 0.01 and abs(new_s2 - s2) < 0.01:
+                print("  [Nash Approx. Converged]")
                 break
             
             s1, s2 = new_s1, new_s2
@@ -152,12 +155,12 @@ class StackelbergGameSolver:
         }
     
     def _analyze_market_power(self, result: StackelbergResult) -> Dict[str, Any]:
-        """시장 지배력 분석"""
-        # 리더의 시장 점유율 (전략 값 기준)
+        """Analyzes market power."""
+        # Leader's market share (based on strategy value)
         total_output = result.leader_strategy + result.follower_strategy
         leader_market_share = result.leader_strategy / total_output if total_output > 0 else 0
         
-        # 수익 점유율
+        # Profit share
         total_payoff = result.leader_payoff + result.follower_payoff
         leader_payoff_share = result.leader_payoff / total_payoff if total_payoff > 0 else 0
         
@@ -172,27 +175,27 @@ class StackelbergGameSolver:
                                    initial_follower_payoff: Callable,
                                    periods: int = 10,
                                    learning_rate: float = 0.1) -> Dict[str, Any]:
-        """동적 스타켈버그 게임 시뮬레이션"""
+        """Simulates a dynamic Stackelberg game."""
         history = []
         
-        # 초기 보상 함수
+        # Initial payoff functions
         current_leader_payoff = initial_leader_payoff
         current_follower_payoff = initial_follower_payoff
         
         for period in range(periods):
-            # 현재 기간의 균형 계산
+            # Calculate the equilibrium for the current period
             result = self.solve_stackelberg_game(current_leader_payoff, current_follower_payoff)
             
-            # 시장 반응 시뮬레이션 (보상 함수 조정)
+            # Simulate market reaction (adjust payoff functions)
             def updated_leader_payoff(l_strategy, f_strategy):
                 base_payoff = initial_leader_payoff(l_strategy, f_strategy)
-                # 경쟁 강도에 따른 수익 감소
+                # Profit decrease due to competition intensity
                 competition_effect = -0.01 * period * (l_strategy + f_strategy)
                 return base_payoff + competition_effect
             
             def updated_follower_payoff(l_strategy, f_strategy):
                 base_payoff = initial_follower_payoff(l_strategy, f_strategy)
-                # 학습 효과로 인한 수익 증가
+                # Profit increase due to learning effect
                 learning_effect = 0.005 * period * f_strategy
                 return base_payoff + learning_effect
             
@@ -216,14 +219,14 @@ class StackelbergGameSolver:
         }
     
     def _analyze_convergence(self, history: List[Dict]) -> Dict[str, Any]:
-        """수렴 분석"""
+        """Analyzes convergence."""
         if len(history) < 2:
             return {'converged': False, 'reason': 'Insufficient data'}
         
         leader_strategies = [h['result'].leader_strategy for h in history]
         follower_strategies = [h['result'].follower_strategy for h in history]
         
-        # 최근 변화율 계산
+        # Calculate recent change rate
         recent_leader_change = abs(leader_strategies[-1] - leader_strategies[-2])
         recent_follower_change = abs(follower_strategies[-1] - follower_strategies[-2])
         
@@ -242,7 +245,7 @@ class StackelbergGameSolver:
         }
     
     def _calculate_welfare_evolution(self, history: List[Dict]) -> List[Dict[str, float]]:
-        """후생 변화 계산"""
+        """Calculates welfare evolution."""
         welfare_data = []
         
         for h in history:
@@ -259,33 +262,34 @@ class StackelbergGameSolver:
         
         return welfare_data
 
-# 사용 예시 - 과점 시장
+# Example Usage - Oligopoly Market
 def demonstrate_stackelberg_competition():
-    """스타켈버그 경쟁 데모"""
+    """Demonstrates Stackelberg competition."""
     solver = StackelbergGameSolver()
+    print("Solver created.")
     
-    # 쿠르노 경쟁 형태의 보상 함수
+    # Cournot competition style payoff functions
     def leader_profit(q_leader, q_follower):
-        """리더의 이익 함수 (수량 경쟁)"""
-        price = max(0, 100 - (q_leader + q_follower))  # 선형 수요
-        cost = 10  # 한계비용
+        """Leader's profit function (quantity competition)."""
+        price = max(0, 100 - (q_leader + q_follower))  # Linear demand
+        cost = 10  # Marginal cost
         return (price - cost) * q_leader
     
     def follower_profit(q_leader, q_follower):
-        """팔로워의 이익 함수"""
+        """Follower's profit function."""
         price = max(0, 100 - (q_leader + q_follower))
-        cost = 15  # 팔로워의 더 높은 한계비용
+        cost = 15  # Follower's higher marginal cost
         return (price - cost) * q_follower
     
-    # 스타켈버그 균형 계산
-    result = solver.solve_stackelberg_game(leader_profit, follower_profit)
-    print(f"Stackelberg Equilibrium: {result}")
+    # # Calculate Stackelberg equilibrium
+    # result = solver.solve_stackelberg_game(leader_profit, follower_profit)
+    # print(f"Stackelberg Equilibrium: {result}")
     
-    # 선수 이점 분석
-    advantage_analysis = solver.analyze_first_mover_advantage(leader_profit, follower_profit)
-    print(f"First Mover Advantage: {advantage_analysis['first_mover_advantage']:.2f}")
-    print(f"Advantage Percentage: {advantage_analysis['advantage_percentage']:.1f}%")
+    # # Analyze first-mover advantage
+    # advantage_analysis = solver.analyze_first_mover_advantage(leader_profit, follower_profit)
+    # print(f"First Mover Advantage: {advantage_analysis['first_mover_advantage']:.2f}")
+    # print(f"Advantage Percentage: {advantage_analysis['advantage_percentage']:.1f}%")
     
-    # 동적 시뮬레이션
-    dynamic_result = solver.simulate_dynamic_stackelberg(leader_profit, follower_profit, periods=15)
-    print(f"Dynamic Simulation Convergence: {dynamic_result['convergence_analysis']['converged']}")
+    # # Dynamic simulation
+    # dynamic_result = solver.simulate_dynamic_stackelberg(leader_profit, follower_profit, periods=15)
+    # print(f"Dynamic Simulation Convergence: {dynamic_result['convergence_analysis']['converged']}")

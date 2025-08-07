@@ -1,17 +1,18 @@
-# 예시: 내쉬 균형 (Nash Equilibrium) 구현
+# Example: Nash Equilibrium Implementation
 import numpy as np
 from typing import List, Tuple, Dict, Any
 from itertools import product
+from scipy.optimize import linprog
 
 class NashEquilibriumSolver:
-    """내쉬 균형 계산 및 분석"""
+    """Calculates and analyzes Nash Equilibrium."""
     
     def __init__(self):
         self.games_history = []
         self.equilibria_found = []
     
     def find_pure_strategy_nash(self, payoff_matrices: List[np.ndarray]) -> List[Tuple]:
-        """순수 전략 내쉬 균형 찾기"""
+        """Finds pure strategy Nash equilibria."""
         if len(payoff_matrices) != 2:
             raise ValueError("Currently supports only 2-player games")
         
@@ -21,12 +22,12 @@ class NashEquilibriumSolver:
         m, n = player1_payoffs.shape
         nash_equilibria = []
         
-        # 모든 전략 조합 확인
+        # Check all strategy combinations
         for i in range(m):
             for j in range(n):
                 is_nash = True
                 
-                # Player 1의 최적 반응 확인
+                # Check for Player 1's best response
                 player1_current = player1_payoffs[i, j]
                 for k in range(m):
                     if k != i and player1_payoffs[k, j] > player1_current:
@@ -36,7 +37,7 @@ class NashEquilibriumSolver:
                 if not is_nash:
                     continue
                 
-                # Player 2의 최적 반응 확인
+                # Check for Player 2's best response
                 player2_current = player2_payoffs[i, j]
                 for l in range(n):
                     if l != j and player2_payoffs[i, l] > player2_current:
@@ -49,20 +50,18 @@ class NashEquilibriumSolver:
         return nash_equilibria
     
     def calculate_mixed_strategy_nash(self, payoff_matrices: List[np.ndarray]) -> Dict[str, Any]:
-        """혼합 전략 내쉬 균형 계산"""
-        from scipy.optimize import linprog
-        
+        """Calculates mixed strategy Nash equilibrium."""
         player1_payoffs = payoff_matrices[0]
         player2_payoffs = payoff_matrices[1]
         
         m, n = player1_payoffs.shape
         
-        # Player 1의 혼합 전략 계산
-        # Player 2가 각 전략을 사용할 확률을 q라 할 때,
-        # Player 1의 각 순수 전략의 기댓값이 같아야 함
+        # Calculate Player 1's mixed strategy
+        # When Player 2 uses a mixed strategy with probability q,
+        # the expected payoffs for Player 1's pure strategies must be equal.
         
         if n > 1:
-            # Player 2의 무차별 조건 설정
+            # Set up Player 2's indifference condition
             A_eq = []
             b_eq = []
             
@@ -73,16 +72,16 @@ class NashEquilibriumSolver:
                 A_eq.append(row)
                 b_eq.append(0)
             
-            # 확률 합이 1이어야 함
+            # Sum of probabilities must be 1
             A_eq.append([1] * n)
             b_eq.append(1)
             
-            # 모든 확률이 0 이상이어야 함
+            # All probabilities must be non-negative
             bounds = [(0, 1) for _ in range(n)]
             
             try:
                 result = linprog(
-                    c=[0] * n,  # 목적함수 (무관)
+                    c=[0] * n,  # Objective function (irrelevant)
                     A_eq=A_eq,
                     b_eq=b_eq,
                     bounds=bounds,
@@ -92,7 +91,7 @@ class NashEquilibriumSolver:
                 if result.success:
                     player2_mixed = result.x
                     
-                    # Player 1의 혼합 전략도 유사하게 계산
+                    # Calculate Player 1's mixed strategy similarly
                     player1_mixed = self._calculate_player1_mixed(
                         player2_payoffs.T, player2_mixed
                     )
@@ -111,9 +110,7 @@ class NashEquilibriumSolver:
 
     def _calculate_player1_mixed(self, transposed_payoffs: np.ndarray, 
                                 opponent_strategy: np.ndarray) -> np.ndarray:
-        """Player 1의 혼합 전략 계산"""
-        from scipy.optimize import linprog
-        
+        """Calculates Player 1's mixed strategy."""
         n, m = transposed_payoffs.shape
         
         if m > 1:
@@ -146,12 +143,12 @@ class NashEquilibriumSolver:
             except:
                 pass
         
-        # 기본값: 균등 분포
+        # Default: uniform distribution
         return np.ones(m) / m
     
     def _calculate_expected_payoffs(self, payoff_matrices: List[np.ndarray],
                                   strategy1: np.ndarray, strategy2: np.ndarray) -> Tuple[float, float]:
-        """기댓값 계산"""
+        """Calculates expected payoffs."""
         payoff1 = np.sum(payoff_matrices[0] * np.outer(strategy1, strategy2))
         payoff2 = np.sum(payoff_matrices[1] * np.outer(strategy1, strategy2))
         
@@ -159,7 +156,7 @@ class NashEquilibriumSolver:
     
     def analyze_game_stability(self, payoff_matrices: List[np.ndarray],
                              equilibrium: Tuple) -> Dict[str, Any]:
-        """게임 안정성 분석"""
+        """Analyzes game stability."""
         pure_equilibria = self.find_pure_strategy_nash(payoff_matrices)
         mixed_equilibrium = self.calculate_mixed_strategy_nash(payoff_matrices)
         
@@ -177,19 +174,19 @@ class NashEquilibriumSolver:
         return analysis
     
     def _classify_game_type(self, payoff_matrices: List[np.ndarray]) -> str:
-        """게임 유형 분류"""
+        """Classifies the game type."""
         player1_payoffs = payoff_matrices[0]
         player2_payoffs = payoff_matrices[1]
         
-        # 제로섬 게임 확인
+        # Check for zero-sum game
         if np.allclose(player1_payoffs + player2_payoffs, 0):
             return "Zero-sum"
         
-        # 협조 게임 확인 (모든 칸에서 두 플레이어 모두 양의 보상)
+        # Check for coordination game (both players have positive payoffs in all cells)
         if np.all(player1_payoffs > 0) and np.all(player2_payoffs > 0):
             return "Coordination"
         
-        # 죄수의 딜레마 유형 확인 (2x2 게임의 경우)
+        # Check for Prisoner's Dilemma type (for 2x2 games)
         if player1_payoffs.shape == (2, 2):
             if (player1_payoffs[0, 0] > player1_payoffs[1, 0] and
                 player1_payoffs[1, 1] > player1_payoffs[0, 1] and
@@ -200,38 +197,40 @@ class NashEquilibriumSolver:
         return "General"
     
     def _calculate_stability_score(self, equilibria: List, payoff_matrices: List[np.ndarray]) -> float:
-        """안정성 점수 계산"""
+        """Calculates stability score."""
         if not equilibria:
             return 0.0
         
-        # 균형점이 많을수록 불안정
+        # More equilibria means less stability
         base_score = 1.0 / (1 + len(equilibria))
         
-        # 보상의 분산이 클수록 불안정
+        # Higher variance in payoffs means less stability
         all_payoffs = [payoff_matrices[0].flatten(), payoff_matrices[1].flatten()]
         variance_penalty = np.mean([np.var(p) for p in all_payoffs]) / 100
         
         return max(0.0, base_score - variance_penalty)
 
-# 사용 예시
-def demonstrate_nash_equilibrium():
-    """내쉬 균형 데모"""
-    solver = NashEquilibriumSolver()
-    
-    # 죄수의 딜레마 게임
-    player1_payoffs = np.array([[3, 0], [5, 1]])  # (협조, 배신) x (협조, 배신)
-    player2_payoffs = np.array([[3, 5], [0, 1]])
-    
-    payoff_matrices = [player1_payoffs, player2_payoffs]
-    
-    # 순수 전략 균형 찾기
-    pure_nash = solver.find_pure_strategy_nash(payoff_matrices)
-    print(f"Pure Strategy Nash Equilibria: {pure_nash}")
-    
-    # 혼합 전략 균형 계산
-    mixed_nash = solver.calculate_mixed_strategy_nash(payoff_matrices)
-    print(f"Mixed Strategy Nash Equilibrium: {mixed_nash}")
-    
-    # 게임 분석
-    analysis = solver.analyze_game_stability(payoff_matrices, pure_nash[0] if pure_nash else None)
-    print(f"Game Analysis: {analysis}")
+if __name__ == "__main__":
+    def demonstrate_nash_equilibrium():
+        """Demonstrates Nash Equilibrium."""
+        solver = NashEquilibriumSolver()
+
+        # Prisoner's Dilemma game
+        player1_payoffs = np.array([[3, 0], [5, 1]])  # (Cooperate, Defect) x (Cooperate, Defect)
+        player2_payoffs = np.array([[3, 5], [0, 1]])
+
+        payoff_matrices = [player1_payoffs, player2_payoffs]
+
+        # Find pure strategy equilibrium
+        pure_nash = solver.find_pure_strategy_nash(payoff_matrices)
+        print(f"Pure Strategy Nash Equilibria: {pure_nash}")
+
+        # Calculate mixed strategy equilibrium
+        mixed_nash = solver.calculate_mixed_strategy_nash(payoff_matrices)
+        print(f"Mixed Strategy Nash Equilibrium: {mixed_nash}")
+
+        # Analyze the game
+        analysis = solver.analyze_game_stability(payoff_matrices, pure_nash[0] if pure_nash else None)
+        print(f"Game Analysis: {analysis}")
+
+    demonstrate_nash_equilibrium()

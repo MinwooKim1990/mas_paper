@@ -1,0 +1,7 @@
+aiohttp
+langchain
+langchain-community
+openai
+numpy
+scipy
+cryptography

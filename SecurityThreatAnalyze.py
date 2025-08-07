@@ -1,4 +1,4 @@
-# 예시: 보안 위협 분석 및 대응
+# Example: Security Threat Analysis and Response
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Dict
@@ -23,28 +23,28 @@ class SecurityThreatAnalyzer:
         self.known_threats = {
             'message_tampering': SecurityThreat(
                 threat_id='MSG_TAMPER_001',
-                description='악의적인 에이전트가 메시지 내용을 변조',
+                description='A malicious agent tampers with message content.',
                 level=ThreatLevel.HIGH,
                 affected_components=['communication', 'message_routing'],
                 mitigation_strategies=['message_signing', 'encryption', 'integrity_check']
             ),
             'agent_impersonation': SecurityThreat(
                 threat_id='AGENT_IMP_001',
-                description='합법적 에이전트로 위장한 악의적 에이전트',
+                description='A malicious agent impersonates a legitimate agent.',
                 level=ThreatLevel.CRITICAL,
                 affected_components=['authentication', 'authorization'],
                 mitigation_strategies=['mutual_authentication', 'certificate_validation']
             ),
             'resource_exhaustion': SecurityThreat(
                 threat_id='RES_EXHAUST_001',
-                description='시스템 자원을 고갈시키는 DoS 공격',
+                description='A DoS attack that depletes system resources.',
                 level=ThreatLevel.HIGH,
                 affected_components=['resource_management', 'message_processing'],
                 mitigation_strategies=['rate_limiting', 'resource_quotas', 'circuit_breaker']
             ),
             'data_leakage': SecurityThreat(
                 threat_id='DATA_LEAK_001',
-                description='민감한 정보의 무단 노출',
+                description='Unauthorized exposure of sensitive information.',
                 level=ThreatLevel.MEDIUM,
                 affected_components=['data_storage', 'communication'],
                 mitigation_strategies=['data_encryption', 'access_control', 'audit_logging']
@@ -54,11 +54,11 @@ class SecurityThreatAnalyzer:
         self.logger = logging.getLogger('security_analyzer')
     
     def assess_threat_level(self, system_components: List[str]) -> Dict[str, ThreatLevel]:
-        """시스템 구성요소에 대한 위협 수준 평가"""
+        """Assesses the threat level for system components."""
         threat_assessment = {}
         
         for threat_name, threat in self.known_threats.items():
-            # 영향 받는 구성요소가 시스템에 포함되어 있는지 확인
+            # Check if affected components are part of the system
             affected = any(component in system_components for component in threat.affected_components)
             
             if affected:
@@ -68,7 +68,7 @@ class SecurityThreatAnalyzer:
         return threat_assessment
     
     def recommend_mitigations(self, detected_threats: List[str]) -> List[str]:
-        """감지된 위협에 대한 완화 전략 추천"""
+        """Recommends mitigation strategies for detected threats."""
         all_mitigations = set()
         
         for threat_name in detected_threats:
@@ -77,3 +77,35 @@ class SecurityThreatAnalyzer:
                 all_mitigations.update(threat.mitigation_strategies)
         
         return list(all_mitigations)
+
+if __name__ == "__main__":
+    # Configure logging to display warnings
+    logging.basicConfig(level=logging.WARNING)
+
+    analyzer = SecurityThreatAnalyzer()
+
+    # Define the components of our system
+    my_system_components = [
+        "communication",
+        "authentication",
+        "data_storage"
+    ]
+
+    print(f"--- Analyzing threats for system with components: {my_system_components} ---")
+
+    # Assess threats
+    threats = analyzer.assess_threat_level(my_system_components)
+
+    print("\n--- Detected Threats ---")
+    if not threats:
+        print("No threats detected.")
+    else:
+        for threat, level in threats.items():
+            print(f"  - {threat}: {level.name}")
+
+    # Recommend mitigations
+    if threats:
+        mitigations = analyzer.recommend_mitigations(list(threats.keys()))
+        print("\n--- Recommended Mitigations ---")
+        for mitigation in mitigations:
+            print(f"  - {mitigation}")
