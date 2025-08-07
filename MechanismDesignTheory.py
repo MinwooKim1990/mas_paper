@@ -1,82 +1,82 @@
-# 예시: 메커니즘 설계 이론 (Mechanism Design Theory) 구현
+# Example: Mechanism Design Theory Implementation
 from typing import Dict, List, Any
 import random
 
 class Agent:
-    """메커니즘에 참여하는 에이전트"""
+    """An agent participating in the mechanism."""
     def __init__(self, agent_id: str, valuation: float = 0.0, cost: float = 0.0):
         self.agent_id = agent_id
-        self.valuation = valuation  # 아이템에 대한 진실된 가치
-        self.cost = cost            # 작업 수행 비용
+        self.valuation = valuation  # True value for the item
+        self.cost = cost            # Cost of performing a task
     
     def __repr__(self):
-        return f"Agent(ID: {self.agent_id}, 가치: {self.valuation:.2f}, 비용: {self.cost:.2f})"
+        return f"Agent(ID: {self.agent_id}, Valuation: {self.valuation:.2f}, Cost: {self.cost:.2f})"
 
 class VCGAuction:
-    """VCG (Vickrey-Clarke-Groves) 옥션 구현
-    진실성 유도 및 개별 합리성을 만족하는 메커니즘"""
+    """VCG (Vickrey-Clarke-Groves) Auction Implementation
+    A mechanism that satisfies truthfulness and individual rationality."""
     
-    def __init__(self, item_name: str = "아이템"):
+    def __init__(self, item_name: str = "Item"):
         self.item_name = item_name
         self.bids = {}  # {agent_id: bid_value}
     
     def add_bid(self, agent: Agent, bid_value: float):
-        """에이전트의 입찰 추가"""
+        """Adds an agent's bid."""
         self.bids[agent.agent_id] = bid_value
-        print(f"  - {agent.agent_id}가 {bid_value:.2f} 입찰")
+        print(f"  - {agent.agent_id} bids {bid_value:.2f}")
     
     def run_auction(self):
-        """VCG 옥션 실행 및 결과 계산"""
+        """Runs the VCG auction and calculates the results."""
         if not self.bids:
             return None, None, None
         
-        # 1. 효율적 할당: 최고 입찰자가 낙찰
+        # 1. Efficient allocation: the highest bidder wins
         winner_id = max(self.bids, key=self.bids.get)
         winning_bid = self.bids[winner_id]
         
-        # 2. VCG 지불액: 외부 효과 (두 번째 최고 입찰가)
+        # 2. VCG payment: externality (second-highest bid)
         bids_without_winner = {aid: bid for aid, bid in self.bids.items() 
                               if aid != winner_id}
         payment = max(bids_without_winner.values()) if bids_without_winner else 0.0
         
-        print(f"\n--- VCG 옥션 결과 ({self.item_name}) ---")
-        print(f"  낙찰자: {winner_id}")
-        print(f"  낙찰 입찰가: {winning_bid:.2f}")
-        print(f"  VCG 지불액: {payment:.2f}")
+        print(f"\n--- VCG Auction Results ({self.item_name}) ---")
+        print(f"  Winner: {winner_id}")
+        print(f"  Winning Bid: {winning_bid:.2f}")
+        print(f"  VCG Payment: {payment:.2f}")
         
-        # 개별 합리성 확인
+        # Check individual rationality
         if winning_bid >= payment:
-            print(f"  [개별 합리성 만족]: 참여 이득 = {winning_bid - payment:.2f}")
+            print(f"  [Individual Rationality Satisfied]: Participation gain = {winning_bid - payment:.2f}")
         
-        # 예산 균형 논의
-        print(f"  [예산 상황]: 시스템 수입 = {payment:.2f}")
+        # Discuss budget balance
+        print(f"  [Budget Status]: System revenue = {payment:.2f}")
         
         return winner_id, winning_bid, payment
 
 class TaskDistributionMechanism:
-    """다중 에이전트 작업 분배 메커니즘 (역 VCG 적용)"""
+    """Multi-agent task distribution mechanism (applies inverse VCG)."""
     
     def __init__(self, tasks: list):
         self.tasks = tasks
         self.agent_costs = {}  # {agent_id: {task_id: cost}}
     
     def add_agent_costs(self, agent: Agent, task_costs: dict):
-        """에이전트의 작업별 비용 보고"""
+        """Reports the agent's costs for each task."""
         self.agent_costs[agent.agent_id] = task_costs
-        print(f"  - {agent.agent_id} 비용 보고: {task_costs}")
+        print(f"  - {agent.agent_id} reports costs: {task_costs}")
     
     def run_distribution(self):
-        """작업 분배 실행"""
+        """Runs the task distribution."""
         if not self.agent_costs or not self.tasks:
             return None, None
         
         allocations = {}  # {task_id: winner_id}
         payments = {}     # {agent_id: total_payment}
         
-        print("\n--- 작업 분배 결과 ---")
+        print("\n--- Task Distribution Results ---")
         
         for task_id in self.tasks:
-            # 최저 비용 에이전트 찾기
+            # Find the agent with the lowest cost
             min_cost = float('inf')
             winner_agent_id = None
             
@@ -88,7 +88,7 @@ class TaskDistributionMechanism:
             if winner_agent_id:
                 allocations[task_id] = winner_agent_id
                 
-                # VCG 지불액: 두 번째 최저 비용
+                # VCG payment: second-lowest cost
                 costs_without_winner = {
                     aid: costs[task_id] for aid, costs in self.agent_costs.items()
                     if aid != winner_agent_id and task_id in costs
@@ -99,100 +99,100 @@ class TaskDistributionMechanism:
                 payment_for_task = second_min_cost
                 payments[winner_agent_id] = payments.get(winner_agent_id, 0.0) + payment_for_task
                 
-                print(f"  - '{task_id}': {winner_agent_id} (비용: {min_cost:.2f}, 지불: {payment_for_task:.2f})")
+                print(f"  - '{task_id}': {winner_agent_id} (Cost: {min_cost:.2f}, Payment: {payment_for_task:.2f})")
                 
-                # 개별 합리성 확인
+                # Check individual rationality
                 if payment_for_task >= min_cost:
                     profit = payment_for_task - min_cost
-                    print(f"    [개별 합리성 만족]: 이익 = {profit:.2f}")
+                    print(f"    [Individual Rationality Satisfied]: Profit = {profit:.2f}")
         
         return allocations, payments
 
 def truthful_mechanism_demo():
-    """진실성 유도 메커니즘 데모"""
-    print("=== 진실성 유도 메커니즘 데모 ===")
+    """Demonstrates a truthful mechanism."""
+    print("=== Truthful Mechanism Demo ===")
     
-    # VCG 옥션 예시
-    auction = VCGAuction("클라우드 서버 시간")
+    # VCG auction example
+    auction = VCGAuction("Cloud Server Time")
     
-    agent_a = Agent("에이전트A", valuation=100)
-    agent_b = Agent("에이전트B", valuation=80)
-    agent_c = Agent("에이전트C", valuation=120)
+    agent_a = Agent("AgentA", valuation=100)
+    agent_b = Agent("AgentB", valuation=80)
+    agent_c = Agent("AgentC", valuation=120)
     
-    print("VCG 옥션 진행:")
-    auction.add_bid(agent_a, agent_a.valuation)  # 진실하게 입찰
+    print("Running VCG Auction:")
+    auction.add_bid(agent_a, agent_a.valuation)  # Bid truthfully
     auction.add_bid(agent_b, agent_b.valuation)
     auction.add_bid(agent_c, agent_c.valuation)
     
     winner, bid, payment = auction.run_auction()
     
-    # 진실성 검증: 거짓 입찰 시 결과 비교
-    print(f"\n진실성 검증:")
-    print(f"  진실 입찰 시 순이익: {bid - payment:.2f}")
+    # Verify truthfulness: compare with the result of a false bid
+    print(f"\nVerifying Truthfulness:")
+    print(f"  Net profit with truthful bid: {bid - payment:.2f}")
     
-    # 만약 agent_c가 거짓으로 낮게 입찰한다면?
-    auction_false = VCGAuction("테스트")
+    # What if agent_c bids falsely low?
+    auction_false = VCGAuction("Test")
     auction_false.add_bid(agent_a, 100)
     auction_false.add_bid(agent_b, 80)
-    auction_false.add_bid(agent_c, 90)  # 거짓 입찰 (실제 가치: 120)
+    auction_false.add_bid(agent_c, 90)  # False bid (actual value: 120)
     
     winner_false, bid_false, payment_false = auction_false.run_auction()
     if winner_false != agent_c.agent_id:
-        print(f"  거짓 입찰 시: 낙찰 실패 (손실 = -{agent_c.valuation - 0:.2f})")
+        print(f"  With false bid: Lost auction (Loss = -{agent_c.valuation - 0:.2f})")
     else:
-        print(f"  거짓 입찰 시 순이익: {bid_false - payment_false:.2f}")
+        print(f"  Net profit with false bid: {bid_false - payment_false:.2f}")
 
 def budget_balance_analysis():
-    """예산 균형 분석"""
-    print("\n=== 예산 균형 분석 ===")
+    """Analyzes budget balance."""
+    print("\n=== Budget Balance Analysis ===")
     
-    # 시나리오 1: 시스템 흑자
-    auction1 = VCGAuction("시나리오1")
+    # Scenario 1: System surplus
+    auction1 = VCGAuction("Scenario1")
     auction1.bids = {"A": 100, "B": 80, "C": 60}
     winner1, bid1, payment1 = auction1.run_auction()
     
-    surplus = payment1  # 시스템이 받는 돈
-    print(f"  시스템 흑자: {surplus:.2f}")
+    surplus = payment1  # Money received by the system
+    print(f"  System surplus: {surplus:.2f}")
     
-    # 시나리오 2: 작업 분배에서의 예산 분석
-    tasks = ["작업1", "작업2"]
+    # Scenario 2: Budget analysis in task distribution
+    tasks = ["Task1", "Task2"]
     mechanism = TaskDistributionMechanism(tasks)
     
     agent_x = Agent("X")
     agent_y = Agent("Y")
     
-    mechanism.add_agent_costs(agent_x, {"작업1": 50, "작업2": 70})
-    mechanism.add_agent_costs(agent_y, {"작업1": 60, "작업2": 40})
+    mechanism.add_agent_costs(agent_x, {"Task1": 50, "Task2": 70})
+    mechanism.add_agent_costs(agent_y, {"Task1": 60, "Task2": 40})
     
     allocations, payments = mechanism.run_distribution()
     
-    total_actual_costs = 50 + 40  # 실제 최소 비용
+    total_actual_costs = 50 + 40  # Actual minimum cost
     total_payments = sum(payments.values())
     budget_deficit = total_payments - total_actual_costs
     
-    print(f"\n  실제 총 비용: {total_actual_costs:.2f}")
-    print(f"  총 지불액: {total_payments:.2f}")
-    print(f"  예산 적자: {budget_deficit:.2f}")
+    print(f"\n  Actual total cost: {total_actual_costs:.2f}")
+    print(f"  Total payments: {total_payments:.2f}")
+    print(f"  Budget deficit: {budget_deficit:.2f}")
 
 class IncentiveCompatibilityAnalyzer:
-    """인센티브 호환성 분석기"""
+    """Incentive compatibility analyzer."""
     
     @staticmethod
     def analyze_truthfulness(true_values: List[float], 
                            mechanism_function: callable) -> Dict[str, Any]:
-        """진실성 분석"""
+        """Analyzes truthfulness."""
         n_agents = len(true_values)
         results = {}
         
-        # 진실한 보고
+        # Truthful reporting
         truthful_outcome = mechanism_function(true_values)
         
-        # 각 에이전트의 거짓 보고 테스트
+        # Test false reporting for each agent
         for i in range(n_agents):
             best_utility = truthful_outcome['utilities'][i]
             best_report = true_values[i]
             
-            # 다양한 거짓 보고 시도
+            # Try various false reports
             for false_value in [true_values[i] * 0.5, true_values[i] * 1.5, 
                               true_values[i] * 0.8, true_values[i] * 1.2]:
                 if false_value == true_values[i]:
@@ -216,18 +216,18 @@ class IncentiveCompatibilityAnalyzer:
         return results
 
 def mechanism_design_comparison():
-    """다양한 메커니즘 비교"""
-    print("\n=== 메커니즘 설계 비교 ===")
+    """Compares different mechanisms."""
+    print("\n=== Mechanism Design Comparison ===")
     
-    # 테스트 데이터
+    # Test data
     true_values = [100, 80, 120, 90]
     
     def vcg_mechanism(values):
-        """VCG 메커니즘 시뮬레이션"""
+        """VCG mechanism simulation."""
         winner_idx = values.index(max(values))
         winner_value = max(values)
         
-        # 두 번째 최고가
+        # Second highest price
         second_price = sorted(values, reverse=True)[1]
         
         utilities = [0] * len(values)
@@ -237,12 +237,12 @@ def mechanism_design_comparison():
             'winner': winner_idx,
             'payment': second_price,
             'utilities': utilities,
-            'efficiency': winner_value  # 사회적 후생
+            'efficiency': winner_value  # Social welfare
         }
     
     def first_price_auction(values):
-        """1차 가격 옥션 (비진실성)"""
-        # 간단한 균형 전략: 자신의 가치의 80% 입찰
+        """First-price auction (not truthful)."""
+        # Simple equilibrium strategy: bid 80% of your value
         bids = [v * 0.8 for v in values]
         winner_idx = bids.index(max(bids))
         winning_bid = max(bids)
@@ -257,32 +257,32 @@ def mechanism_design_comparison():
             'efficiency': values[winner_idx]
         }
     
-    # 분석 실행
+    # Run analysis
     analyzer = IncentiveCompatibilityAnalyzer()
     
-    print("VCG 메커니즘 진실성 분석:")
+    print("VCG Mechanism Truthfulness Analysis:")
     vcg_analysis = analyzer.analyze_truthfulness(true_values, vcg_mechanism)
     truthful_count = sum(1 for result in vcg_analysis.values() if result['is_truthful'])
-    print(f"  진실한 에이전트 수: {truthful_count}/{len(true_values)}")
+    print(f"  Number of truthful agents: {truthful_count}/{len(true_values)}")
     
-    print("\n1차 가격 옥션 진실성 분석:")
+    print("\nFirst-Price Auction Truthfulness Analysis:")
     fpa_analysis = analyzer.analyze_truthfulness(true_values, first_price_auction)
     truthful_count_fpa = sum(1 for result in fpa_analysis.values() if result['is_truthful'])
-    print(f"  진실한 에이전트 수: {truthful_count_fpa}/{len(true_values)}")
+    print(f"  Number of truthful agents: {truthful_count_fpa}/{len(true_values)}")
     
-    # 효율성 비교
+    # Compare efficiency
     vcg_result = vcg_mechanism(true_values)
     fpa_result = first_price_auction(true_values)
     
-    print(f"\n효율성 비교:")
-    print(f"  VCG 사회적 후생: {vcg_result['efficiency']:.2f}")
-    print(f"  1차 가격 옥션 사회적 후생: {fpa_result['efficiency']:.2f}")
+    print(f"\nEfficiency Comparison:")
+    print(f"  VCG Social Welfare: {vcg_result['efficiency']:.2f}")
+    print(f"  First-Price Auction Social Welfare: {fpa_result['efficiency']:.2f}")
 
-# 메인 실행 함수
+# Main execution function
 def demonstrate_mechanism_design():
-    """메커니즘 설계 이론 종합 데모"""
+    """Comprehensive demo of mechanism design theory."""
     print("=" * 50)
-    print("메커니즘 설계 이론 Python 구현 데모")
+    print("Mechanism Design Theory Python Implementation Demo")
     print("=" * 50)
     
     truthful_mechanism_demo()
@@ -290,13 +290,13 @@ def demonstrate_mechanism_design():
     mechanism_design_comparison()
     
     print("\n" + "=" * 50)
-    print("핵심 통찰:")
-    print("1. VCG는 진실성 유도와 효율성을 달성")
-    print("2. 예산 균형은 다른 속성과 트레이드오프")
-    print("3. 개별 합리성은 참여 인센티브 보장")
-    print("4. 메커니즘 선택은 목표에 따라 결정")
+    print("Key Insights:")
+    print("1. VCG achieves truthfulness and efficiency.")
+    print("2. Budget balance is a trade-off with other properties.")
+    print("3. Individual rationality ensures participation incentive.")
+    print("4. The choice of mechanism depends on the goal.")
     print("=" * 50)
 
-# 실행
+# Execute
 if __name__ == "__main__":
     demonstrate_mechanism_design()

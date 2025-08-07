@@ -4,17 +4,18 @@ from typing import Dict, List, Any
 import threading
 import json
 from datetime import datetime
+import os
 
 class SharedBlackboard:
-    """공유 블랙보드 시스템 - 여러 에이전트가 정보를 읽고 쓸 수 있는 중앙 저장소"""
+    """A shared blackboard system - a central repository where multiple agents can read and write information."""
     
     def __init__(self):
         self.data = {}
         self.lock = threading.Lock()
-        self.subscribers = {}  # 특정 키에 대한 구독자들
+        self.subscribers = {}  # Subscribers for specific keys
         
     def write(self, key: str, value: Any, agent_id: str):
-        """에이전트가 블랙보드에 정보 쓰기"""
+        """An agent writes information to the blackboard."""
         with self.lock:
             timestamp = datetime.now().isoformat()
             entry = {
@@ -27,31 +28,31 @@ class SharedBlackboard:
                 self.data[key] = []
             self.data[key].append(entry)
             
-            # 구독자들에게 알림
+            # Notify subscribers
             if key in self.subscribers:
                 for callback in self.subscribers[key]:
                     callback(key, entry)
     
     def read(self, key: str) -> List[Dict]:
-        """특정 키의 모든 데이터 읽기"""
+        """Reads all data for a specific key."""
         with self.lock:
             return self.data.get(key, [])
     
     def read_latest(self, key: str) -> Dict:
-        """특정 키의 최신 데이터 읽기"""
+        """Reads the latest data for a specific key."""
         with self.lock:
             entries = self.data.get(key, [])
             return entries[-1] if entries else None
     
     def subscribe(self, key: str, callback):
-        """특정 키에 대한 변경사항 구독"""
+        """Subscribes to changes for a specific key."""
         if key not in self.subscribers:
             self.subscribers[key] = []
         self.subscribers[key].append(callback)
 
-# LangChain과 통합된 블랙보드 에이전트
+# Blackboard agent integrated with LangChain
 from langchain.agents import Agent
-from langchain.llms import OpenAI
+from langchain_community.llms import OpenAI
 
 class BlackboardAgent:
     def __init__(self, agent_id: str, blackboard: SharedBlackboard, llm):
@@ -61,9 +62,9 @@ class BlackboardAgent:
         self.memory = ConversationBufferMemory()
         
     def process_task(self, task: str, context_keys: List[str] = None):
-        """작업 처리 - 블랙보드에서 컨텍스트 읽고 결과 쓰기"""
+        """Processes a task - reads context from the blackboard and writes the result."""
         
-        # 블랙보드에서 관련 정보 수집
+        # Collect relevant information from the blackboard
         context = ""
         if context_keys:
             for key in context_keys:
@@ -71,7 +72,7 @@ class BlackboardAgent:
                 if data:
                     context += f"{key}: {data['value']}\n"
         
-        # LLM을 사용해 작업 처리
+        # Process the task using LLM
         prompt = f"""
         Task: {task}
         
@@ -83,28 +84,45 @@ class BlackboardAgent:
         
         response = self.llm(prompt)
         
-        # 결과를 블랙보드에 기록
+        # Write the result to the blackboard
         result_key = f"task_result_{self.agent_id}_{datetime.now().timestamp()}"
         self.blackboard.write(result_key, response, self.agent_id)
         
         return response
-blackboard = SharedBlackboard()
-llm = OpenAI(temperature=0.7)
 
-# 여러 에이전트 생성
-agent1 = BlackboardAgent("researcher", blackboard, llm)
-agent2 = BlackboardAgent("writer", blackboard, llm)
-agent3 = BlackboardAgent("reviewer", blackboard, llm)
+if __name__ == '__main__':
+    # Check for OpenAI API key
+    if "OPENAI_API_KEY" not in os.environ:
+        print("Please set the OPENAI_API_KEY environment variable to run this demo.")
+    else:
+        blackboard = SharedBlackboard()
+        llm = OpenAI(temperature=0.7)
 
-# 협업 시나리오
-# 1. 연구 에이전트가 정보 수집
-research_result = agent1.process_task("Research about AI safety")
-blackboard.write("research_data", research_result, "researcher")
+        # Create multiple agents
+        agent1 = BlackboardAgent("researcher", blackboard, llm)
+        agent2 = BlackboardAgent("writer", blackboard, llm)
+        agent3 = BlackboardAgent("reviewer", blackboard, llm)
 
-# 2. 작가 에이전트가 연구 결과를 바탕으로 글 작성
-article = agent2.process_task("Write an article about AI safety", ["research_data"])
-blackboard.write("draft_article", article, "writer")
+        # Collaboration scenario
+        # 1. Research agent collects information
+        print("Researcher is researching AI safety...")
+        research_result = agent1.process_task("Research about AI safety")
+        blackboard.write("research_data", research_result, "researcher")
+        print("Researcher has finished.")
 
-# 3. 리뷰어가 글을 검토
-review = agent3.process_task("Review the draft article", ["draft_article"])
-blackboard.write("review_feedback", review, "reviewer")
+        # 2. Writer agent writes an article based on the research results
+        print("\nWriter is writing an article...")
+        article = agent2.process_task("Write an article about AI safety", ["research_data"])
+        blackboard.write("draft_article", article, "writer")
+        print("Writer has finished.")
+
+        # 3. Reviewer reviews the article
+        print("\nReviewer is reviewing the article...")
+        review = agent3.process_task("Review the draft article", ["draft_article"])
+        blackboard.write("review_feedback", review, "reviewer")
+        print("Reviewer has finished.")
+
+        print("\n--- Final Results ---")
+        print(f"Research Data: {blackboard.read_latest('research_data')['value']}")
+        print(f"Draft Article: {blackboard.read_latest('draft_article')['value']}")
+        print(f"Review Feedback: {blackboard.read_latest('review_feedback')['value']}")

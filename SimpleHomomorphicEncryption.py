@@ -1,23 +1,23 @@
-# 예시: 간단한 동형 암호화 구현 (교육용)
+# Example: Simple Homomorphic Encryption Implementation (for educational purposes)
 import random
 from typing import Tuple
 
 class SimpleHomomorphicEncryption:
-    """교육용 간단한 동형 암호화 (실제 사용 불가)"""
+    """A simple homomorphic encryption for educational purposes (not for real use)."""
     
     def __init__(self, key_size: int = 16):
         self.key_size = key_size
         self.private_key, self.public_key = self._generate_keys()
     
     def _generate_keys(self) -> Tuple[int, Tuple[int, int]]:
-        """키 생성 (매우 단순화된 RSA 유사)"""
-        # 실제로는 훨씬 복잡한 수학적 과정
+        """Key generation (very simplified RSA-like)."""
+        # In reality, this is a much more complex mathematical process
         p = self._generate_prime()
         q = self._generate_prime()
         n = p * q
         phi = (p - 1) * (q - 1)
         
-        e = 65537  # 공통 공개 지수
+        e = 65537  # Common public exponent
         d = self._mod_inverse(e, phi)
         
         private_key = d
@@ -26,27 +26,27 @@ class SimpleHomomorphicEncryption:
         return private_key, public_key
     
     def encrypt(self, plaintext: int) -> int:
-        """암호화"""
+        """Encryption."""
         e, n = self.public_key
         return pow(plaintext, e, n)
     
     def decrypt(self, ciphertext: int) -> int:
-        """복호화"""
+        """Decryption."""
         e, n = self.public_key
         return pow(ciphertext, self.private_key, n)
     
     def homomorphic_add(self, ciphertext1: int, ciphertext2: int) -> int:
-        """동형 덧셈 (암호화된 상태에서 연산)"""
+        """Homomorphic addition (computation on encrypted data)."""
         e, n = self.public_key
         return (ciphertext1 * ciphertext2) % n
     
     def _generate_prime(self) -> int:
-        """소수 생성 (단순화)"""
+        """Generates a prime number (simplified)."""
         primes = [101, 103, 107, 109, 113, 127, 131, 137, 139, 149]
         return random.choice(primes)
     
     def _mod_inverse(self, a: int, m: int) -> int:
-        """모듈러 역원"""
+        """Modular inverse."""
         def extended_gcd(a, b):
             if a == 0:
                 return b, 0, 1
@@ -59,61 +59,66 @@ class SimpleHomomorphicEncryption:
         if gcd != 1:
             raise ValueError("Modular inverse does not exist")
         return (x % m + m) % m
+
 class PrivacyPreservingMAS:
-    """프라이버시 보호 다중 에이전트 시스템"""
+    """A privacy-preserving multi-agent system."""
     
     def __init__(self):
         self.he_system = SimpleHomomorphicEncryption()
         self.agents = {}
     
     def register_agent(self, agent_id: str, private_value: int):
-        """에이전트 등록 (비밀 값 암호화)"""
+        """Registers an agent (encrypts the secret value)."""
         encrypted_value = self.he_system.encrypt(private_value)
         self.agents[agent_id] = {
             'encrypted_value': encrypted_value,
-            'original_value': private_value  # 검증용 (실제로는 저장하지 않음)
+            'original_value': private_value  # For verification (not stored in a real scenario)
         }
     
-    def compute_sum_without_revealing_values(self) -> int:
-        """개별 값을 노출하지 않고 합계 계산"""
+    def compute_product_without_revealing_values(self) -> int:
+        """Computes the product without revealing individual values."""
         if not self.agents:
-            return 0
+            return 1
         
-        # 암호화된 상태에서 합계 계산
-        encrypted_sum = list(self.agents.values())[0]['encrypted_value']
+        # Compute product on encrypted data
+        encrypted_product = list(self.agents.values())[0]['encrypted_value']
         
         for agent_data in list(self.agents.values())[1:]:
-            encrypted_sum = self.he_system.homomorphic_add(
-                encrypted_sum, 
+            encrypted_product = self.he_system.homomorphic_add(
+                encrypted_product,
                 agent_data['encrypted_value']
             )
         
-        # 최종 결과 복호화
-        decrypted_sum = self.he_system.decrypt(encrypted_sum)
+        # Decrypt the final result
+        decrypted_product = self.he_system.decrypt(encrypted_product)
         
-        return decrypted_sum
+        return decrypted_product
     
     def verify_computation(self) -> bool:
-        """계산 결과 검증 (테스트용)"""
-        actual_sum = sum(agent['original_value'] for agent in self.agents.values())
-        computed_sum = self.compute_sum_without_revealing_values()
+        """Verifies the computation (for testing)."""
+        from functools import reduce
+        import operator
+        actual_product = reduce(operator.mul, [agent['original_value'] for agent in self.agents.values()], 1)
+        computed_product = self.compute_product_without_revealing_values()
         
-        return actual_sum == computed_sum
+        return actual_product == computed_product
 
-# 사용 예시
-def demonstrate_privacy_preserving_computation():
-    """프라이버시 보호 계산 데모"""
-    mas = PrivacyPreservingMAS()
-    
-    # 에이전트들이 각자의 비밀 값 등록
-    mas.register_agent("agent1", 10)
-    mas.register_agent("agent2", 25)
-    mas.register_agent("agent3", 15)
-    
-    # 개별 값을 노출하지 않고 합계 계산
-    total = mas.compute_sum_without_revealing_values()
-    print(f"Total sum (computed privately): {total}")
-    
-    # 검증
-    is_correct = mas.verify_computation()
-    print(f"Computation verified: {is_correct}")
+if __name__ == "__main__":
+    def demonstrate_privacy_preserving_computation():
+        """Demonstrates privacy-preserving computation."""
+        mas = PrivacyPreservingMAS()
+
+        # Agents register their secret values
+        mas.register_agent("agent1", 10)
+        mas.register_agent("agent2", 25)
+        mas.register_agent("agent3", 15)
+
+        # Compute the product without revealing individual values
+        total = mas.compute_product_without_revealing_values()
+        print(f"Total product (computed privately): {total}")
+
+        # Verification
+        is_correct = mas.verify_computation()
+        print(f"Computation verified: {is_correct}")
+
+    demonstrate_privacy_preserving_computation()
