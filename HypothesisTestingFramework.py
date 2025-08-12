@@ -1,7 +1,7 @@
 # 가설 검정 프레임워크
 import numpy as np
 from scipy import stats
-from typing import Dict, Tuple, List, Optional
+from typing import Any, Dict, Tuple, List, Optional
 from statsmodels.stats.multitest import multipletests
 
 class HypothesisTestingFramework:

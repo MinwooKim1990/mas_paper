@@ -1,7 +1,7 @@
 # 성능 비교의 통계적 유의성 검증
 import scipy.stats as stats
 import numpy as np
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 
 class StatisticalAnalyzer:
     """통계적 분석 도구"""
@@ -159,7 +159,7 @@ class ExperimentalDesigner:
             'interaction_effects': interaction_effects,
             'summary_statistics': df.groupby('replication')['result'].describe().to_dict()
         }
-    
+
 # 사용 예시
 def conduct_performance_study():
     """성능 연구 수행 예시"""
