@@ -1,10 +1,9 @@
 import asyncio
-from queue import Queue, PriorityQueue
+from queue import PriorityQueue
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
 import uuid
-import os
 
 class MessageType(Enum):
     REQUEST = "request"

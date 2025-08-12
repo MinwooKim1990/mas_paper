@@ -178,4 +178,5 @@ if __name__ == "__main__":
 
     # 4. Test unblocking after duration
     print("\n4. Testing IP unblocking...")
+    time.sleep(3)
     print(f"Connection from 10.0.0.5 (after 3s): {'Allowed' if manager.is_connection_allowed('10.0.0.5') else 'Denied'}")
