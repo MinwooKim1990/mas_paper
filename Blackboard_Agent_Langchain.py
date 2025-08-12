@@ -1,8 +1,6 @@
 from langchain.memory import ConversationBufferMemory
-from langchain.schema import BaseMemory
 from typing import Dict, List, Any
 import threading
-import json
 from datetime import datetime
 import os
 
@@ -51,7 +49,6 @@ class SharedBlackboard:
         self.subscribers[key].append(callback)
 
 # Blackboard agent integrated with LangChain
-from langchain.agents import Agent
 from langchain_community.llms import OpenAI
 
 class BlackboardAgent:
