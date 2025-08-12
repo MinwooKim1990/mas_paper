@@ -1,8 +1,11 @@
 # 예시: MAS 벤치마킹 프레임워크
 import asyncio
 import json
+import random
+import statistics
+import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Callable, Any
+from typing import Any, Callable, Dict, List
 
 class BenchmarkScenario(ABC):
     """벤치마크 시나리오 기본 클래스"""

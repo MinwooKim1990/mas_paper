@@ -2,7 +2,6 @@
 import numpy as np
 from scipy import stats
 from typing import Tuple, List, Dict
-import warnings
 
 class ConfidenceIntervalCalculator:
     """다양한 방법으로 신뢰구간 계산"""
@@ -191,3 +190,4 @@ def analyze_agent_performance_uncertainty():
     plt.title('Agent Response Time Distribution with Uncertainty')
     plt.legend()
     plt.grid(True, alpha=0.3)
+    plt.show()

@@ -2,6 +2,7 @@
 from enum import Enum
 from typing import Optional, Callable, Dict, Any
 import asyncio
+import time
 
 class InteractionMode(Enum):
     AUTONOMOUS = "autonomous"           # 완전 자율
